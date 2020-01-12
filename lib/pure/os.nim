@@ -1050,6 +1050,28 @@ proc existsDir*(dir: string): bool {.rtl, extern: "nos$1", tags: [ReadDirEffect]
     var res: Stat
     return stat(dir, res) >= 0'i32 and S_ISDIR(res.st_mode)
 
+proc existsNamedPipe*(namedPipe: string): bool {.rtl, extern: "nos$1",
+                                                 tags: [ReadDirEffect],
+                                                 noNimScript.} =
+  ## Returns true if the named pipe `namedPipe` exists.
+  ##
+  ## See also:
+  ## * `existsFile proc <#existsFile,string>`_
+  ## * `existsDir proc <#existsDir,string>`_
+  ## * `symlinkExists proc <#symlinkExists,string>`_
+  when defined(windows):
+    when useWinUnicode:
+      wrapUnary(a, getFileAttributesW, namedPipe)
+    else:
+      var a = getFileAttributesA(namedPipe)
+    if a != -1'i32:
+      result = ((a and PIPE_ACCESS_DUPLEX) != 0'i32) or
+               ((a and PIPE_ACCESS_INBOUND) != 0'i32) or
+               ((a and PIPE_ACCESS_OUTBOUND) != 0'i32)
+  else:
+    var res: Stat
+    return stat(namedPipe, res) >= 0'i32 and S_ISFIFO(res.st_mode)
+
 proc symlinkExists*(link: string): bool {.rtl, extern: "nos$1",
                                           tags: [ReadDirEffect],
                                           noNimScript.} =
@@ -1085,6 +1107,15 @@ proc dirExists*(dir: string): bool {.inline, noNimScript.} =
   ## * `existsFile proc <#existsFile,string>`_
   ## * `symlinkExists proc <#symlinkExists,string>`_
   existsDir(dir)
+
+proc namedPipeExists*(namedPipe: string): bool {.inline, noNimScript.} =
+  ## Alias for `existsNamedPipe proc <#existsNamedPipe,string>`_.
+  ##
+  ## See also:
+  ## * `existsFile proc <#existsFile,string>`_
+  ## * `existsDir proc <#existsDir,string>`_
+  ## * `symlinkExists proc <#symlinkExists,string>`_
+  existsNamedPipe(namedPipe)
 
 when not defined(windows) and not weirdTarget:
   proc checkSymlink(path: string): bool =

@@ -26,6 +26,10 @@ Raises
 # test os path creation, iteration, and deletion
 
 import os, strutils, pathnorm
+when defined windows:
+  import winlean
+else:
+  import posix
 
 block fileOperations:
   let files = @["these.txt", "are.x", "testing.r", "files.q"]
@@ -378,3 +382,28 @@ block osenv:
     doAssert existsEnv(dummyEnvVar) == false
     delEnv(dummyEnvVar)         # deleting an already deleted env var
     doAssert existsEnv(dummyEnvVar) == false
+
+block existsNamedPipe:
+  let dir = "named_pipe"
+  let pipeFile = dir / "out.pipe"
+  let textFile = dir / "out.txt"
+  try:
+    createDir(dir)
+    doAssert not existsNamedPipe(dir)
+
+    writeFile(textFile, "text")
+    doAssert not existsNamedPipe(textFile)
+
+    when defined windows:
+      for mode in [PIPE_ACCESS_DUPLEX, PIPE_ACCESS_INBOUND, PIPE_ACCESS_OUTBOUND]:
+        discard createNamedPipe(WideCString(pipefile), mode, PIPE_TYPE_BYTE, 1, 0, 0, 100, nil)
+        doAssert existsNamedPipe(pipeFile)
+        doAssert namedPipeExists(pipeFile)
+        removeFile(pipeFile)
+    else:
+      doAssert mkfifo(cstring(pipeFile), 0b110_100_100) == 0
+      doAssert existsNamedPipe(pipeFile)
+      doAssert namedPipeExists(pipeFile)
+      removeFile(pipeFile)
+  finally:
+    removeDir(dir)
